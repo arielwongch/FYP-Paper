@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en" data-themes="tokyo-night,dracula,catppuccin-mocha,nord,corporate-clean">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Biweekly progress update on memory architectures for LLM agents.">
+<title>Biweekly Progress Update · Agent Memory</title>
+<link rel="stylesheet" href="../../.agents/skills/html-ppt/assets/fonts.css">
+<link rel="stylesheet" href="../../.agents/skills/html-ppt/assets/base.css">
+<link rel="stylesheet" id="theme-link" href="../../.agents/skills/html-ppt/assets/themes/tokyo-night.css">
+<link rel="stylesheet" href="../../.agents/skills/html-ppt/assets/animations/animations.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="tpl-presenter-mode-reveal">
+<div class="deck">
+
+  <!-- ============ 1. COVER ============ -->
+  <section class="slide" data-title="Cover">
+    <p class="kicker">biweekly progress update · september 2026</p>
+    <h1 class="h1 anim-fade-up" data-anim="fade-up">Exploring and Optimizing<br><span style="background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent">Memory Architectures</span> for LLM Agents</h1>
+    <p class="lede mt-m">Literature review complete · design space synthesized · implementation begins next</p>
+    <div class="speaker">
+      <div class="av"></div>
+      <div><b>FYP progress update</b><span>10-minute group report · biweekly</span></div>
+    </div>
+    <div class="deck-footer">
+      <span class="mono">#agent-memory #literature-review #next-sprint</span>
+      <span class="slide-number" data-current="1" data-total="8"></span>
+    </div>
+    <aside class="notes">
+      <p>Welcome. This update focuses on the <strong>literature review and research question refinement</strong> completed over the past two weeks. The project aims to build an LLM agent framework with interchangeable memory modules, then compare their task quality and system overhead on long-horizon tasks.</p>
+      <p>I have reviewed the core mechanisms and evaluation approaches in the survey, MemGPT, Mem0, and A-MEM, with ReAct as background for the agent loop. Today I will cover three things: what is complete, what common structure emerged from the papers, and how that understanding becomes a runnable baseline over the next two weeks.</p>
+      <p>This is not a final design review. It is the transition from reading to implementation, ending with the concrete deliverables for the next meeting.</p>
+    </aside>
+  </section>
+
+  <!-- ============ 2. COMPLETED ============ -->
+  <section class="slide" data-title="Papers Read">
+    <p class="kicker">01 · completed since last meeting</p>
+    <h2 class="h2">Four papers read, four <span class="accent">design perspectives</span></h2>
+    <div class="grid g2 mt-l">
+      <div class="card card-accent"><h4>Memory in the Age of AI Agents · Survey</h4><p class="dim">A lifecycle view: memory formation, evolution, and retrieval, plus a map of benchmarks and open problems.</p></div>
+      <div class="card card-accent"><h4>MemGPT · virtual context management</h4><p class="dim">Treats memory as context management: working context is separated from a larger external archive.</p></div>
+      <div class="card card-accent"><h4>Mem0 · production-oriented memory</h4><p class="dim">Extracts candidate facts and chooses ADD, UPDATE, DELETE, or NOOP when new information arrives.</p></div>
+      <div class="card card-accent"><h4>A-MEM · agentic memory</h4><p class="dim">Uses atomic notes, links, and memory evolution to build a connected knowledge structure.</p></div>
+    </div>
+    <aside class="notes">
+      <p>The main completed task since the last meeting was a focused reading pass over four papers in the paper folder. I started with the survey to understand the vocabulary and the overall research landscape, then read MemGPT, Mem0, and A-MEM as three different system perspectives.</p>
+      <p>The survey gave me the lifecycle view. MemGPT showed how memory can be treated as virtual context management. Mem0 made the write and update decisions explicit through ADD, UPDATE, DELETE, and NOOP. A-MEM showed how atomic notes and links can support a continuously evolving memory structure.</p>
+      <p>These are not four interchangeable implementations. They make different design choices, which gives us a useful basis for deciding what the baseline framework should expose.</p>
+    </aside>
+  </section>
+
+  <!-- ============ 3. SYNTHESIS ============ -->
+  <section class="slide" data-title="What I Learned">
+    <p class="kicker">02 · lessons from the reading</p>
+    <h2 class="h2">What I learned: memory is a <span class="accent">policy, not just storage</span></h2>
+    <div class="grid g3 mt-l">
+      <div class="card card-accent">
+        <h4>01 · Selective formation</h4>
+        <p class="dim">A system must decide what is worth keeping from messages, tool outputs, or feedback.</p>
+      </div>
+      <div class="card card-accent">
+        <h4>02 · Explicit evolution</h4>
+        <p class="dim">Memory must handle duplicates, conflicts, stale facts, and updates instead of only appending.</p>
+      </div>
+      <div class="card card-accent">
+        <h4>03 · Task-aware retrieval</h4>
+        <p class="dim">The useful memory depends on the current task, observation, query, and context budget.</p>
+      </div>
+    </div>
+    <aside class="notes">
+      <p>The most important lesson is that memory is a <strong>policy, not just storage</strong>. The system decides what to write, how to change an existing memory, and what to retrieve for the next action. A vector database can be one backend, but it is not the whole memory architecture.</p>
+      <p>The papers also suggest that quality depends on the full lifecycle. Retrieval alone cannot fix poor formation, and formation alone cannot resolve contradictions or identify which memory is relevant to the current task.</p>
+      <p>This is the reason the planned framework needs a common write, retrieve, and update interface. It lets the experiment compare these policy choices directly rather than comparing unrelated agent implementations.</p>
+    </aside>
+  </section>
+
+  <!-- ============ 4. FRAMEWORK ============ -->
+  <section class="slide" data-title="Framework">
+    <p class="kicker">03 · proposed framework contract</p>
+    <h2 class="h2">One agent loop, <span class="accent">replaceable memory policy</span></h2>
+    <div class="grid g2 mt-l">
+      <div class="card card-accent">
+        <h4>Runtime flow</h4>
+        <div class="code-block mt-m">
+<span class="comment"># each interaction step</span>
+observation → <span class="cmd">retrieve(query, state)</span>
+context = recent + retrieved
+action = agent(context, tools)
+<span class="cmd">write(observation, action, outcome)</span>
+<span class="cmd">update(memory_state)</span>
+        </div>
+      </div>
+      <div class="card card-accent">
+        <h4>Shared module interface</h4>
+        <div class="code-block mt-m">
+<span class="cmd">class MemoryModule:</span>
+  write(event) → candidates
+  retrieve(query, k) → items
+  update(candidates) → state
+  stats() → cost, size, latency
+        </div>
+      </div>
+    </div>
+    <p class="lede mt-m tc">The experiment changes the memory module, not the agent loop, task input, or evaluator.</p>
+    <aside class="notes">
+      <p>This is the proposed technical contract for the framework. The agent loop receives an observation, asks the selected memory module for relevant context, combines that with the recent window, and then produces an action or tool call.</p>
+      <p>After the step, the same module receives the event, action, and outcome. It can decide whether to write a candidate, update existing state, or do nothing. The important point is that the loop does not know whether the backend is a summary, vector index, or fact graph.</p>
+      <p>The shared interface exposes write, retrieve, update, and stats. Stats are part of the contract because this project evaluates system behaviour as well as answer quality. For a fair comparison, the task input, backbone, prompt budget, and evaluator stay fixed while the memory policy changes.</p>
+    </aside>
+  </section>
+
+  <!-- ============ 5. BASELINES ============ -->
+  <section class="slide" data-title="Baselines">
+    <p class="kicker">03 · implementation target</p>
+    <h2 class="h2">First, establish four <span class="accent">interchangeable baselines</span></h2>
+    <div class="grid g2 mt-l">
+      <div>
+        <div class="feature-row"><span class="num blue">1</span><div><b>Sliding window</b><p class="dim">Use recent messages as the simplest context-budget baseline.</p></div></div>
+        <div class="feature-row"><span class="num green">2</span><div><b>Summary memory</b><p class="dim">Compress history and measure the trade-off between recall and latency.</p></div></div>
+      </div>
+      <div>
+        <div class="feature-row"><span class="num orange">3</span><div><b>Retrieval memory</b><p class="dim">Retrieve relevant passages with embedding similarity and measure overhead and noise.</p></div></div>
+        <div class="feature-row"><span class="num purple">4</span><div><b>Structured fact memory</b><p class="dim">Maintain entities, relationships, and updates explicitly, following graph-style ideas from Mem0g.</p></div></div>
+      </div>
+    </div>
+    <aside class="notes">
+      <p>The next step is not to pursue a complex adaptive memory immediately. I will first run four <strong>interchangeable modules</strong>, keeping the memory policy as the main changing factor while holding the agent backbone, task inputs, and evaluator as consistent as possible.</p>
+      <p>Sliding window is the control group; summary memory tests compression; retrieval memory tests external storage and similarity search; structured fact memory tests explicit facts and relationships. Together, they represent the main design choices that appeared repeatedly in the reading.</p>
+      <p>Each module will implement the same write, retrieve, and update interfaces, while recording token usage, time, and storage. The later adaptive policy can then be based on observed baseline weaknesses rather than intuition.</p>
+    </aside>
+  </section>
+
+  <!-- ============ 6. EVALUATION ============ -->
+  <section class="slide" data-title="Evaluation">
+    <p class="kicker">05 · evaluation protocol</p>
+    <h2 class="h2">Measure memory as both <span class="accent">quality and systems behaviour</span></h2>
+    <div class="grid g2 mt-l">
+      <div class="card card-accent">
+        <h4>Task quality</h4>
+        <div class="stack mt-m">
+          <div class="feature-row"><span class="num blue">Q1</span><div><b>Recall</b><p class="dim">Can the agent recover facts from earlier sessions?</p></div></div>
+          <div class="feature-row"><span class="num green">Q2</span><div><b>Consistency</b><p class="dim">Does the answer remain aligned with stored facts?</p></div></div>
+          <div class="feature-row"><span class="num orange">Q3</span><div><b>Knowledge update</b><p class="dim">Can new information override or extend old memory?</p></div></div>
+          <div class="feature-row"><span class="num purple">Q4</span><div><b>Task success</b><p class="dim">Does memory improve completion of the multi-session task?</p></div></div>
+        </div>
+      </div>
+      <div class="card card-accent">
+        <h4>System behaviour</h4>
+        <div class="stack mt-m">
+          <div class="feature-row"><span class="num blue">S1</span><div><b>Latency</b><p class="dim">End-to-end time and memory operation time per step.</p></div></div>
+          <div class="feature-row"><span class="num green">S2</span><div><b>Retrieval overhead</b><p class="dim">Extra calls, tokens, and ranking work introduced by memory.</p></div></div>
+          <div class="feature-row"><span class="num orange">S3</span><div><b>Storage growth</b><p class="dim">Memory size and redundancy as history length increases.</p></div></div>
+          <div class="feature-row"><span class="num purple">S4</span><div><b>Scalability</b><p class="dim">How costs change across longer histories and sessions.</p></div></div>
+        </div>
+      </div>
+    </div>
+    <aside class="notes">
+      <p>The evaluation needs two axes. On the quality side, the project brief calls for recall, consistency, knowledge updating, and task success. These separate remembering a fact from using it correctly, and separate retrieving old knowledge from handling a changed fact.</p>
+      <p>On the systems side, I will record latency, retrieval overhead, storage growth, and scalability as histories become longer. This matters because a memory module that improves F1 but adds large prompt or retrieval costs may not be a useful system design.</p>
+      <p>The first implementation will use a single controlled task and a small Qwen backbone, then expand to a larger benchmark once the pipeline is stable. Each result should report the task configuration, model, memory module, and cost statistics so that comparisons remain reproducible.</p>
+    </aside>
+  </section>
+
+  <!-- ============ 7. PLAN ============ -->
+  <section class="slide" data-title="Next Two Weeks">
+    <p class="kicker">04 · next two weeks</p>
+    <h2 class="h2">Next cycle: from interfaces to the <span class="accent">first reproducible experiment</span></h2>
+    <div class="stack mt-l">
+      <div class="rule-row">
+        <span class="num red">W1</span>
+        <div>
+          <b>Framework skeleton</b>
+          <p class="dim">Define the agent loop, MemoryModule interface, logging schema, and configuration.</p>
+        </div>
+      </div>
+      <div class="rule-row">
+        <span class="num red">W1</span>
+        <div>
+          <b>Implement the four baselines</b>
+          <p class="dim">Run end to end on a small multi-session task with fixed inputs and backbone.</p>
+        </div>
+      </div>
+      <div class="rule-row">
+        <span class="num red">W2</span>
+        <div>
+          <b>Evaluation harness</b>
+          <p class="dim">Report recall, consistency, and update success alongside latency, retrieval overhead, and storage growth.</p>
+        </div>
+      </div>
+    </div>
+    <aside class="notes">
+      <p>The goal for the next two weeks is to build a <strong>minimal but complete experimental loop</strong>, rather than finish every benchmark and optimization at once.</p>
+      <p>In week one, I will establish the engineering skeleton: a shared memory module API, agent loop, configuration, and logging. Then I will connect the four baselines and run them end to end on at least one small multi-session task. The key check is that the modules are genuinely interchangeable, not four unrelated scripts.</p>
+      <p>In week two, I will add the evaluation harness. The quality side will start with recall, consistency, and knowledge update success; the systems side will record latency, retrieval overhead, and storage growth. The minimum deliverable for the next meeting is one input set that can run automatically through all four baselines and produce a comparison table.</p>
+    </aside>
+  </section>
+
+  <!-- ============ 8. MILESTONES ============ -->
+  <section class="slide" data-title="Milestones">
+    <p class="kicker">05 · milestones &amp; discussion</p>
+    <h2 class="h2">For the next meeting, I will bring <span class="accent">three deliverables</span></h2>
+    <div class="code-block mt-m">
+<span class="comment">01 · runnable framework</span>
+<span class="cmd">MemoryModule</span>  <span class="flag">write / retrieve / update</span>
+
+<span class="comment">02 · baseline comparison</span>
+<span class="cmd">4 modules</span>  <span class="flag">same task / same backbone</span>
+
+<span class="comment">03 · first evidence</span>
+<span class="cmd">results.csv</span>  <span class="flag">quality + systems metrics</span>
+    </div>
+    <p class="lede mt-m tc">The stretch goal comes later: an adaptive policy informed by baseline failures.</p>
+    <div class="deck-footer">
+      <span class="mono">#questions · #feedback · #next-sprint</span>
+      <span class="slide-number" data-current="8" data-total="8"></span>
+    </div>
+    <aside class="notes">
+      <p>To summarize the delivery criteria for the next meeting: first, a runnable modular framework with clear write, retrieve, and update interfaces. Second, four baselines that can be reproduced on the same task and backbone. Third, a first results table covering both quality and systems metrics.</p>
+      <p>I will deliberately leave the adaptive strategy until after the baselines. We do not yet know whether the main bottleneck is write selection, conflict resolution, retrieval noise, or storage growth. Measuring those failures first gives the adaptive policy a real basis.</p>
+      <p>The main conclusion today is that the literature review has moved the problem from “memory matters” to “memory lifecycle plus comparable interfaces.” Over the next two weeks, the code will test that abstraction. Feedback is especially welcome on whether the task and metrics can distinguish the four memory types, and which baseline should be prioritized first.</p>
+    </aside>
+  </section>
+
+</div>
+
+<div style="position:fixed;bottom:12px;left:12px;font-size:11px;color:#484f5866;z-index:100;pointer-events:none">
+  S presenter · T theme · ← → navigate · F fullscreen · O overview · R reset timer
+</div>
+
+<script src="../../.agents/skills/html-ppt/assets/runtime.js"></script>
+</body>
+</html>
