@@ -1,4 +1,6 @@
 # Mem0
+
+## Summary
 evaluated on LOCOMO against:
 1. established memory-augmented systems
 2. retrieval-augmented generation (RAG) with varying chunk sizes and k-values
@@ -29,3 +31,15 @@ entity extractor
 relationship generator
 
 LLM-as-a-Judge
+
+## Evaluation
+
+Dataset: LOCOMO
+
+Benchmark
+1. F1 
+2. BLEU1
+other: ROUGE-L, ROUGE-2, METEOR, and SBERT Similarity
+
+Compared Framework:
+LOCOMO ReadAgent MemoryBank MemGPT AMem Mem0
